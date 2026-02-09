@@ -30,6 +30,13 @@ export default function Dashboard({ categories, expenses }: DashboardProps) {
         }))
         .sort((a, b) => b.amount - a.amount);
 
+    const [showAllCategories, setShowAllCategories] = React.useState(false);
+    const INITIAL_CATEGORY_COUNT = 4;
+
+    const displayedCategories = showAllCategories
+        ? categoryData
+        : categoryData.slice(0, INITIAL_CATEGORY_COUNT);
+
     return (
         <div>
             {/* Statistics Cards */}
@@ -67,7 +74,7 @@ export default function Dashboard({ categories, expenses }: DashboardProps) {
                     </h3>
 
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                        {categoryData.map(({ category, amount, percentage }) => (
+                        {displayedCategories.map(({ category, amount, percentage }) => (
                             <div key={category}>
                                 <div className="flex-between mb-sm">
                                     <div className="flex gap-sm" style={{ alignItems: 'center' }}>
@@ -107,6 +114,19 @@ export default function Dashboard({ categories, expenses }: DashboardProps) {
                             </div>
                         ))}
                     </div>
+
+                    {/* Show More / Less Button */}
+                    {categoryData.length > INITIAL_CATEGORY_COUNT && (
+                        <div style={{ marginTop: '1.5rem', textAlign: 'center' }}>
+                            <button
+                                onClick={() => setShowAllCategories(!showAllCategories)}
+                                className="btn btn-secondary btn-sm"
+                                style={{ width: '100%' }}
+                            >
+                                {showAllCategories ? 'Show Less 🔼' : `Show All (${categoryData.length}) 🔽`}
+                            </button>
+                        </div>
+                    )}
                 </div>
             )}
         </div>

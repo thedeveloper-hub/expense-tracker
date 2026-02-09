@@ -91,6 +91,23 @@ export const supabaseStorage = {
             return false;
         }
 
+
+        return true;
+    },
+
+    async clearAllExpenses(userId: string): Promise<boolean> {
+        if (!isSupabaseConfigured()) return false;
+
+        const { error } = await supabase
+            .from('expenses')
+            .delete()
+            .eq('user_id', userId);
+
+        if (error) {
+            console.error('Error clearing all expenses:', error);
+            return false;
+        }
+
         return true;
     },
 

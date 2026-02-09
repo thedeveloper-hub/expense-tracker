@@ -90,8 +90,15 @@ export const useExpenses = () => {
         }
     };
 
-    const clearAllExpenses = () => {
-        setExpenses([]);
+    const clearAllExpenses = async () => {
+        if (storageMode === 'supabase' && user) {
+            const success = await supabaseStorage.clearAllExpenses(user.id);
+            if (success) {
+                setExpenses([]);
+            }
+        } else {
+            setExpenses([]);
+        }
     };
 
     const exportExpenses = () => {

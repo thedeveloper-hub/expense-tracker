@@ -17,18 +17,33 @@ export const useCategories = () => {
             if (isConfigured && user) {
                 // Load from Supabase
                 const supabaseCategories = await supabaseStorage.getCategories(user.id);
+
                 if (supabaseCategories.length > 0) {
-                    setCategories([...DEFAULT_CATEGORIES, ...supabaseCategories.map((cat: any) => ({
+                    // User has categories, use them
+                    setCategories(supabaseCategories.map((cat: any) => ({
+                        id: cat.id,
                         name: cat.name,
                         icon: cat.icon,
                         color: cat.color,
-                    }))]);
+                    })));
+                } else {
+                    // New user (no categories), seed defaults
+                    const seededCategories = [];
+                    for (const defaultCat of DEFAULT_CATEGORIES) {
+                        const newCat = await supabaseStorage.addCategory(user.id, defaultCat);
+                        if (newCat) seededCategories.push(newCat);
+                    }
+                    if (seededCategories.length > 0) {
+                        setCategories(seededCategories);
+                    }
                 }
             } else {
                 // Load from localStorage
                 const savedCategories = categoryStorage.getCategories();
                 if (savedCategories.length > 0) {
                     setCategories(savedCategories);
+                } else {
+                    setCategories(DEFAULT_CATEGORIES);
                 }
             }
             setIsLoading(false);
@@ -57,23 +72,58 @@ export const useCategories = () => {
             // Add to Supabase
             const newCategory = await supabaseStorage.addCategory(user.id, category);
             if (newCategory) {
-                setCategories((prev) => [...prev, category]);
+                setCategories((prev) => [...prev, newCategory]);
                 return true;
             }
             return false;
         } else {
             // Add to localStorage
-            setCategories((prev) => [...prev, category]);
+            const newCategory = { ...category, id: crypto.randomUUID() };
+            setCategories((prev) => [...prev, newCategory]);
             return true;
         }
     };
 
-    const deleteCategory = (categoryName: string) => {
-        setCategories((prev) => prev.filter((cat) => cat.name !== categoryName));
+    const deleteCategory = async (categoryIdOrName: string) => {
+        if (isConfigured && user) {
+            // Find category to check if it has an ID
+            const categoryToDelete = categories.find(
+                cat => cat.id === categoryIdOrName || cat.name === categoryIdOrName
+            );
+
+            if (categoryToDelete?.id) {
+                const success = await supabaseStorage.deleteCategory(categoryToDelete.id, user.id);
+                if (success) {
+                    setCategories((prev) => prev.filter((cat) => cat.id !== categoryToDelete.id));
+                }
+            }
+        } else {
+            // Local storage delete (by name or id)
+            setCategories((prev) => prev.filter((cat) => cat.name !== categoryIdOrName && cat.id !== categoryIdOrName));
+        }
     };
 
-    const resetToDefaults = () => {
-        setCategories(DEFAULT_CATEGORIES);
+    const resetToDefaults = async () => {
+        if (confirm('Are you sure you want to reset all categories to default? This will delete your custom categories.')) {
+            if (isConfigured && user) {
+                // Delete all existing categories first
+                for (const cat of categories) {
+                    if (cat.id) {
+                        await supabaseStorage.deleteCategory(cat.id, user.id);
+                    }
+                }
+
+                // Seed defaults
+                const seededCategories = [];
+                for (const defaultCat of DEFAULT_CATEGORIES) {
+                    const newCat = await supabaseStorage.addCategory(user.id, defaultCat);
+                    if (newCat) seededCategories.push(newCat);
+                }
+                setCategories(seededCategories);
+            } else {
+                setCategories(DEFAULT_CATEGORIES);
+            }
+        }
     };
 
     return {

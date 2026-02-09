@@ -58,6 +58,13 @@ export default function ExpenseList({ categories, expenses, onEdit, onDelete }: 
         return category?.icon || '📦';
     };
 
+    const [showAllHistory, setShowAllHistory] = useState(false);
+    const INITIAL_HISTORY_COUNT = 10;
+
+    const displayedExpenses = showAllHistory
+        ? filteredAndSortedExpenses
+        : filteredAndSortedExpenses.slice(0, INITIAL_HISTORY_COUNT);
+
     return (
         <div className="glass-card" style={{ padding: '1.5rem' }}>
             <div className="flex-between mb-lg">
@@ -109,7 +116,7 @@ export default function ExpenseList({ categories, expenses, onEdit, onDelete }: 
                             </tr>
                         </thead>
                         <tbody>
-                            {filteredAndSortedExpenses.map((expense) => (
+                            {displayedExpenses.map((expense) => (
                                 <tr key={expense.id} className="fade-in">
                                     <td style={{ color: 'var(--text-secondary)' }}>
                                         {formatDate(expense.date)}
@@ -160,8 +167,21 @@ export default function ExpenseList({ categories, expenses, onEdit, onDelete }: 
                 </div>
             )}
 
+            {/* Show More / Less Button */}
+            {filteredAndSortedExpenses.length > INITIAL_HISTORY_COUNT && (
+                <div style={{ marginTop: '1.5rem', textAlign: 'center' }}>
+                    <button
+                        onClick={() => setShowAllHistory(!showAllHistory)}
+                        className="btn btn-secondary btn-sm"
+                        style={{ width: '100%' }}
+                    >
+                        {showAllHistory ? 'Show Less 🔼' : `Show All (${filteredAndSortedExpenses.length}) 🔽`}
+                    </button>
+                </div>
+            )}
+
             <div className="text-center mt-md" style={{ color: 'var(--text-tertiary)', fontSize: '0.875rem' }}>
-                Showing {filteredAndSortedExpenses.length} of {expenses.length} expenses
+                Showing {displayedExpenses.length} of {expenses.length} expenses
             </div>
         </div>
     );

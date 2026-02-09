@@ -183,10 +183,14 @@ export default function CategoryManager({
                                         />
                                     </div>
                                     <button
-                                        onClick={() => handleDelete(category.name)}
-                                        className="btn btn-danger btn-sm"
-                                        style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}
-                                        title="Delete category"
+                                        onClick={() => onDeleteCategory(category.id || category.name)}
+                                        className="btn btn-danger"
+                                        style={{
+                                            padding: '0.25rem 0.5rem',
+                                            fontSize: '0.75rem',
+                                            opacity: 0.7,
+                                        }}
+                                        title="Delete Category"
                                     >
                                         ✕
                                     </button>

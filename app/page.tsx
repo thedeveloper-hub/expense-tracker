@@ -15,6 +15,8 @@ import CategoryManager from '@/components/CategoryManager';
 import LoginForm from '@/components/LoginForm';
 import MonthlyStats from '@/components/MonthlyStats';
 
+import Toast from '@/components/Toast';
+
 export default function Home() {
   const { user, signOut, loading: authLoading, isConfigured } = useAuth();
   const { theme, toggleTheme } = useTheme();
@@ -42,18 +44,25 @@ export default function Home() {
 
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Filter expenses by selected month
   const filteredExpenses = filterExpensesByMonth(expenses, selectedMonth);
 
-  const handleAddExpense = (expenseData: {
+  const handleAddExpense = async (expenseData: {
     amount: number;
     category: string;
     date: string;
     description: string;
   }) => {
-    addExpense(expenseData);
+    try {
+      await addExpense(expenseData);
+      setToast({ message: 'Expense added successfully! 🚀', type: 'success' });
+    } catch (error) {
+      console.error('Error adding expense:', error);
+      setToast({ message: 'Failed to add expense', type: 'error' });
+    }
   };
 
   const handleEditExpense = (expense: Expense) => {
@@ -71,6 +80,7 @@ export default function Home() {
     if (editingExpense) {
       updateExpense(editingExpense.id, expenseData);
       setEditingExpense(null);
+      setToast({ message: 'Expense updated successfully! ✨', type: 'success' });
     }
   };
 
@@ -83,9 +93,9 @@ export default function Home() {
     if (file) {
       const success = await importExpenses(file);
       if (success) {
-        alert('✅ Expenses imported successfully!');
+        setToast({ message: 'Expenses imported successfully! ✅', type: 'success' });
       } else {
-        alert('❌ Failed to import expenses. Please check the file format.');
+        setToast({ message: 'Failed to import expenses. Please check the file format. ❌', type: 'error' });
       }
       // Reset file input
       if (fileInputRef.current) {
@@ -94,23 +104,30 @@ export default function Home() {
     }
   };
 
-  const handleClearAll = () => {
+  const handleClearAll = async () => {
     if (confirm('⚠️ Are you sure you want to delete ALL expenses? This cannot be undone.')) {
-      clearAllExpenses();
+      await clearAllExpenses();
+      setToast({ message: 'All expenses cleared! 🗑️', type: 'info' });
     }
   };
 
   const handleSyncToCloud = async () => {
     if (confirm('📤 Upload all local data to cloud? This will add your local expenses to Supabase.')) {
       const result = await syncLocalToCloud();
-      alert(result.success ? `✅ ${result.message}` : `❌ ${result.message}`);
+      setToast({
+        message: result.message,
+        type: result.success ? 'success' : 'error'
+      });
     }
   };
 
   const handleSyncFromCloud = async () => {
     if (confirm('📥 Download cloud data to local storage? This will replace your local data.')) {
       const result = await syncCloudToLocal();
-      alert(result.success ? `✅ ${result.message}` : `❌ ${result.message}`);
+      setToast({
+        message: result.message,
+        type: result.success ? 'success' : 'error'
+      });
     }
   };
 
@@ -156,6 +173,15 @@ export default function Home() {
 
   return (
     <div className="container" style={{ paddingTop: '2rem', paddingBottom: '3rem' }}>
+      {/* Toast Notification */}
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
+      )}
+
       {/* Header */}
       <header className="text-center mb-xl">
         <h1
