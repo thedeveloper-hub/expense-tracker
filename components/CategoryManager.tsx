@@ -8,6 +8,8 @@ interface CategoryManagerProps {
     onAddCategory: (category: Category) => Promise<boolean>;
     onDeleteCategory: (categoryName: string) => void;
     onResetCategories: () => void;
+    onReorderCategories: (categories: Category[]) => void;
+    onSetDefaultCategory: (categoryId: string) => void;
 }
 
 const EMOJI_OPTIONS = ['🍔', '🚗', '🛍️', '🎬', '📄', '⚕️', '📚', '📦', '🏠', '💡', '🎮', '✈️', '🎵', '💪', '🐕', '☕', '🎨', '🔧'];
@@ -22,11 +24,14 @@ export default function CategoryManager({
     onAddCategory,
     onDeleteCategory,
     onResetCategories,
+    onReorderCategories,
+    onSetDefaultCategory,
 }: CategoryManagerProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [newCategoryName, setNewCategoryName] = useState('');
     const [selectedIcon, setSelectedIcon] = useState(EMOJI_OPTIONS[0]);
     const [selectedColor, setSelectedColor] = useState(COLOR_OPTIONS[0]);
+    const [draggedItemIndex, setDraggedItemIndex] = useState<number | null>(null);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -62,6 +67,35 @@ export default function CategoryManager({
         if (confirm('⚠️ Reset to default categories? This will remove all custom categories.')) {
             onResetCategories();
         }
+    };
+
+    // Drag and Drop Handlers
+    const onDragStart = (e: React.DragEvent, index: number) => {
+        setDraggedItemIndex(index);
+        e.dataTransfer.effectAllowed = 'move';
+        // e.dataTransfer.setData('text/html', e.currentTarget as any); // generic fallback
+    };
+
+    const onDragOver = (e: React.DragEvent, index: number) => {
+        e.preventDefault(); // Necessary to allow dropping
+        e.dataTransfer.dropEffect = 'move';
+
+        if (draggedItemIndex === null || draggedItemIndex === index) return;
+
+        const newCategories = [...categories];
+        const draggedItem = newCategories[draggedItemIndex];
+
+        // Remove dragged item
+        newCategories.splice(draggedItemIndex, 1);
+        // Insert at new position
+        newCategories.splice(index, 0, draggedItem);
+
+        onReorderCategories(newCategories);
+        setDraggedItemIndex(index);
+    };
+
+    const onDragEnd = () => {
+        setDraggedItemIndex(null);
     };
 
     return (
@@ -158,9 +192,13 @@ export default function CategoryManager({
                         </div>
 
                         <div className="grid grid-3" style={{ gap: '0.75rem' }}>
-                            {categories.map((category) => (
+                            {categories.map((category, index) => (
                                 <div
                                     key={category.name}
+                                    draggable
+                                    onDragStart={(e) => onDragStart(e, index)}
+                                    onDragOver={(e) => onDragOver(e, index)}
+                                    onDragEnd={onDragEnd}
                                     className="glass-card"
                                     style={{
                                         padding: '0.75rem',
@@ -168,6 +206,10 @@ export default function CategoryManager({
                                         alignItems: 'center',
                                         justifyContent: 'space-between',
                                         gap: '0.5rem',
+                                        cursor: 'grab',
+                                        opacity: draggedItemIndex === index ? 0.5 : 1,
+                                        transform: draggedItemIndex === index ? 'scale(1.05)' : 'scale(1)',
+                                        transition: 'transform 0.1s ease, box-shadow 0.1s ease',
                                     }}
                                 >
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flex: 1 }}>
@@ -181,22 +223,44 @@ export default function CategoryManager({
                                                 backgroundColor: category.color,
                                             }}
                                         />
+                                        {category.is_default && <span title="Default Category">⭐</span>}
                                     </div>
-                                    <button
-                                        onClick={() => onDeleteCategory(category.id || category.name)}
-                                        className="btn btn-danger"
-                                        style={{
-                                            padding: '0.25rem 0.5rem',
-                                            fontSize: '0.75rem',
-                                            opacity: 0.7,
-                                        }}
-                                        title="Delete Category"
-                                    >
-                                        ✕
-                                    </button>
+                                    <div style={{ display: 'flex', gap: '0.25rem' }}>
+                                        {!category.is_default && (
+                                            <button
+                                                onClick={() => onSetDefaultCategory(category.id || category.name)}
+                                                className="btn btn-sm"
+                                                style={{
+                                                    padding: '0.25rem 0.5rem',
+                                                    fontSize: '0.75rem',
+                                                    background: 'transparent',
+                                                    border: '1px solid var(--border)',
+                                                    color: 'var(--text-secondary)',
+                                                }}
+                                                title="Set as Default"
+                                            >
+                                                ☆
+                                            </button>
+                                        )}
+                                        <button
+                                            onClick={() => onDeleteCategory(category.id || category.name)}
+                                            className="btn btn-danger"
+                                            style={{
+                                                padding: '0.25rem 0.5rem',
+                                                fontSize: '0.75rem',
+                                                opacity: 0.7,
+                                            }}
+                                            title="Delete Category"
+                                        >
+                                            ✕
+                                        </button>
+                                    </div>
                                 </div>
                             ))}
                         </div>
+                        <p style={{ textAlign: 'center', fontSize: '0.8rem', color: 'var(--text-tertiary)', marginTop: '1rem' }}>
+                            💡 Drag and drop categories to reorder them
+                        </p>
                     </div>
                 </div>
             )}

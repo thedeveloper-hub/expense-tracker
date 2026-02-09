@@ -40,6 +40,8 @@ export default function Home() {
     addCategory,
     deleteCategory,
     resetToDefaults,
+    reorderCategories,
+    setDefaultCategory,
   } = useCategories();
 
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
@@ -370,6 +372,8 @@ export default function Home() {
           onAddCategory={addCategory}
           onDeleteCategory={deleteCategory}
           onResetCategories={resetToDefaults}
+          onReorderCategories={reorderCategories}
+          onSetDefaultCategory={setDefaultCategory}
         />
       </div>
 

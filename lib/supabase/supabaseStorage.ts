@@ -1,5 +1,5 @@
 import { supabase, isSupabaseConfigured } from '@/lib/supabase/client';
-import { Expense } from '@/types/types';
+import { Expense, Category } from '@/types/types';
 
 export const supabaseStorage = {
     // Check if Supabase is available
@@ -128,7 +128,7 @@ export const supabaseStorage = {
         return data || [];
     },
 
-    async addCategory(userId: string, category: { name: string; icon: string; color: string }) {
+    async addCategory(userId: string, category: { name: string; icon: string; color: string; is_default?: boolean }) {
         if (!isSupabaseConfigured()) return null;
 
         const { data, error } = await supabase
@@ -139,6 +139,8 @@ export const supabaseStorage = {
                     name: category.name,
                     icon: category.icon,
                     color: category.color,
+                    order_index: (category as any).order_index ?? 0,
+                    is_default: category.is_default ?? false,
                 },
             ])
             .select()
@@ -150,6 +152,55 @@ export const supabaseStorage = {
         }
 
         return data;
+    },
+
+    async setDefaultCategory(userId: string, categoryId: string) {
+        if (!isSupabaseConfigured()) return false;
+
+        // First, reset all categories for this user to not default
+        await supabase
+            .from('categories')
+            .update({ is_default: false })
+            .eq('user_id', userId);
+
+        // Then set the target category as default
+        const { error } = await supabase
+            .from('categories')
+            .update({ is_default: true })
+            .eq('id', categoryId)
+            .eq('user_id', userId);
+
+        if (error) {
+            console.error('Error setting default category:', error);
+            return false;
+        }
+
+        return true;
+    },
+
+    async updateCategoryOrder(userId: string, categories: Category[]) {
+        if (!isSupabaseConfigured()) return false;
+
+        const updates = categories.map((cat, index) => ({
+            id: cat.id,
+            user_id: userId,
+            name: cat.name,
+            icon: cat.icon,
+            color: cat.color,
+            order_index: index,
+            is_default: cat.is_default ?? false,
+        }));
+
+        const { error } = await supabase
+            .from('categories')
+            .upsert(updates);
+
+        if (error) {
+            console.error('Error updating category order:', error);
+            return false;
+        }
+
+        return true;
     },
 
     async deleteCategory(id: string, userId: string) {

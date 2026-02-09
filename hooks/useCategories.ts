@@ -20,17 +20,21 @@ export const useCategories = () => {
 
                 if (supabaseCategories.length > 0) {
                     // User has categories, use them
-                    setCategories(supabaseCategories.map((cat: any) => ({
+                    const loadedCategories = supabaseCategories.map((cat: any) => ({
                         id: cat.id,
                         name: cat.name,
                         icon: cat.icon,
                         color: cat.color,
-                    })));
+                        order_index: cat.order_index,
+                        is_default: cat.is_default,
+                    })).sort((a: any, b: any) => (a.order_index || 0) - (b.order_index || 0));
+                    setCategories(loadedCategories);
                 } else {
                     // New user (no categories), seed defaults
                     const seededCategories = [];
-                    for (const defaultCat of DEFAULT_CATEGORIES) {
-                        const newCat = await supabaseStorage.addCategory(user.id, defaultCat);
+                    for (let i = 0; i < DEFAULT_CATEGORIES.length; i++) {
+                        const defaultCat = DEFAULT_CATEGORIES[i];
+                        const newCat = await supabaseStorage.addCategory(user.id, { ...defaultCat, order_index: i } as any);
                         if (newCat) seededCategories.push(newCat);
                     }
                     if (seededCategories.length > 0) {
@@ -41,7 +45,7 @@ export const useCategories = () => {
                 // Load from localStorage
                 const savedCategories = categoryStorage.getCategories();
                 if (savedCategories.length > 0) {
-                    setCategories(savedCategories);
+                    setCategories(savedCategories.sort((a, b) => (a.order_index || 0) - (b.order_index || 0)));
                 } else {
                     setCategories(DEFAULT_CATEGORIES);
                 }
@@ -68,9 +72,11 @@ export const useCategories = () => {
             return false;
         }
 
+        const newOrderIndex = categories.length; // Add to end
+
         if (isConfigured && user) {
             // Add to Supabase
-            const newCategory = await supabaseStorage.addCategory(user.id, category);
+            const newCategory = await supabaseStorage.addCategory(user.id, { ...category, order_index: newOrderIndex } as any);
             if (newCategory) {
                 setCategories((prev) => [...prev, newCategory]);
                 return true;
@@ -78,9 +84,19 @@ export const useCategories = () => {
             return false;
         } else {
             // Add to localStorage
-            const newCategory = { ...category, id: crypto.randomUUID() };
+            const newCategory = { ...category, id: crypto.randomUUID(), order_index: newOrderIndex };
             setCategories((prev) => [...prev, newCategory]);
             return true;
+        }
+    };
+
+    const reorderCategories = async (newCategories: Category[]) => {
+        // Optimistic UI update
+        const updatedCategories = newCategories.map((cat, index) => ({ ...cat, order_index: index }));
+        setCategories(updatedCategories);
+
+        if (isConfigured && user) {
+            await supabaseStorage.updateCategoryOrder(user.id, updatedCategories);
         }
     };
 
@@ -126,11 +142,33 @@ export const useCategories = () => {
         }
     };
 
+    const setDefaultCategory = async (categoryIdOrName: string) => {
+        const updatedCategories = categories.map(cat => ({
+            ...cat,
+            is_default: (cat.id === categoryIdOrName || cat.name === categoryIdOrName)
+        }));
+
+        setCategories(updatedCategories);
+
+        if (isConfigured && user) {
+            // Find the category to set as default
+            const targetCategory = updatedCategories.find(c => c.is_default);
+            if (targetCategory && targetCategory.id) {
+                await supabaseStorage.setDefaultCategory(user.id, targetCategory.id);
+            }
+        } else {
+            // Local storage update is handled by the useEffect
+        }
+        return true;
+    };
+
     return {
         categories,
         isLoading,
         addCategory,
         deleteCategory,
         resetToDefaults,
+        reorderCategories,
+        setDefaultCategory,
     };
 };

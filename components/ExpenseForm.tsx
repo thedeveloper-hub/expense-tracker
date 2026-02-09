@@ -22,9 +22,20 @@ interface ExpenseFormProps {
 
 export default function ExpenseForm({ categories, onSubmit, initialData, onCancel }: ExpenseFormProps) {
     const [amount, setAmount] = useState(initialData?.amount.toString() || '');
-    const [category, setCategory] = useState(initialData?.category || categories[0]?.name || '');
+    const defaultCategory = categories.find(c => c.is_default);
+    const [category, setCategory] = useState(initialData?.category || defaultCategory?.name || categories[0]?.name || '');
     const [date, setDate] = useState(initialData?.date || new Date().toISOString().split('T')[0]);
     const [description, setDescription] = useState(initialData?.description || '');
+
+    // Update category when default changes (only for new expenses)
+    React.useEffect(() => {
+        if (!initialData) {
+            const defaultCat = categories.find(c => c.is_default);
+            if (defaultCat) {
+                setCategory(defaultCat.name);
+            }
+        }
+    }, [categories, initialData]);
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -44,7 +55,8 @@ export default function ExpenseForm({ categories, onSubmit, initialData, onCance
         // Reset form if not editing
         if (!initialData) {
             setAmount('');
-            setCategory(categories[0]?.name || '');
+            const defaultCat = categories.find(c => c.is_default);
+            setCategory(defaultCat?.name || categories[0]?.name || '');
             setDate(new Date().toISOString().split('T')[0]);
             setDescription('');
         }
