@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { useAuth } from './AuthProvider';
 
 export default function LoginForm() {
-    const { signIn, signUp, isConfigured } = useAuth();
+    const { signIn, signUp, signInWithGoogle, isConfigured } = useAuth();
     const [isSignUp, setIsSignUp] = useState(false);
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -63,9 +63,49 @@ export default function LoginForm() {
 
     return (
         <div className="glass-card" style={{ padding: '2rem', maxWidth: '400px', margin: '2rem auto' }}>
-            <h2 style={{ marginBottom: '1.5rem', fontSize: '1.75rem', fontWeight: '700', textAlign: 'center' }}>
-                {isSignUp ? '📝 Sign Up' : '🔐 Sign In'}
-            </h2>
+
+
+            <button
+                onClick={async () => {
+                    setError('');
+                    setLoading(true);
+                    try {
+                        const { error } = await signInWithGoogle();
+                        if (error) setError(error.message);
+                    } catch (err: any) {
+                        setError(err.message || 'An error occurred');
+                    } finally {
+                        setLoading(false);
+                    }
+                }}
+                className="btn"
+                style={{
+                    width: '100%',
+                    background: 'white',
+                    color: '#333',
+                    border: '1px solid #ddd',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '0.75rem',
+                    marginBottom: '1.5rem',
+                    position: 'relative',
+                }}
+                disabled={loading}
+            >
+                <img
+                    src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
+                    alt="Google"
+                    style={{ width: '20px', height: '20px' }}
+                />
+                Sign in with Google
+            </button>
+
+            <div style={{ display: 'flex', alignItems: 'center', margin: '0 0 1.5rem 0' }}>
+                <div style={{ flex: 1, height: '1px', background: 'var(--border)' }}></div>
+                <span style={{ padding: '0 0.75rem', color: 'var(--text-tertiary)', fontSize: '0.875rem' }}>OR</span>
+                <div style={{ flex: 1, height: '1px', background: 'var(--border)' }}></div>
+            </div>
 
             <form onSubmit={handleSubmit}>
                 <div className="form-group">
@@ -130,6 +170,6 @@ export default function LoginForm() {
                     {isSignUp ? 'Already have an account? Sign In' : "Don't have an account? Sign Up"}
                 </button>
             </div>
-        </div>
+        </div >
     );
 }

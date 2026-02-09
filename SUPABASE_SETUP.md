@@ -145,6 +145,25 @@ Your expenses are now saved to the cloud and will sync across all your devices!
 - Make sure you ran the SQL queries to create tables
 - Check the browser console for errors
 
+## Step 8: Enable Google Login (Optional)
+
+1.  Go to **Supabase Dashboard** -> **Authentication** -> **Providers**.
+2.  Click on **Google** and toggle it **Enable**.
+3.  You need a **Client ID** and **Client Secret** from Google Cloud Console.
+    *   Go to [Google Cloud Console](https://console.cloud.google.com/).
+    *   Create a project -> APIs & Services -> Credentials -> Create Credentials -> OAuth Client ID.
+    *   **Application Type**: Web application.
+    *   **Authorized JavaScript Origins**: `http://localhost:3000` (and your production URL).
+    *   **Authorized Redirect URIs**: Copy the "Callback URL (for OAuth)" from your Supabase Google Provider page (starts with `https://.../auth/v1/callback`).
+4.  Copy Client ID and Secret back to Supabase and click **Save**.
+
+**Problem: "Unable to exchange external code" error with Google Login**
+- This usually means your **Google Cloud Console** configuration is incorrect.
+- Go to [Google Cloud Console](https://console.cloud.google.com/) -> Credentials.
+- Check that **Authorized Redirect URIs** EXACTLY matches the URL from Supabase (including `https` and `/auth/v1/callback`).
+- Ensure you clicked **SAVE** in the Supabase Dashboard after pasting the Client ID and Secret.
+- Wait a few minutes; sometimes Google's changes take time to propagate.
+
 ## Need Help?
 
 If you encounter any issues, check:
