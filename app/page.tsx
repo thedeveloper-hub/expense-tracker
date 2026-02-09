@@ -1,65 +1,364 @@
-import Image from "next/image";
+'use client';
+
+import { useState, useRef } from 'react';
+import { useExpenses } from '@/hooks/useExpenses';
+import { useCategories } from '@/hooks/useCategories';
+import { useAuth } from '@/components/AuthProvider';
+import { useTheme } from '@/components/ThemeProvider';
+import { useStorageMode } from '@/components/StorageModeProvider';
+import { Expense } from '@/types/types';
+import { filterExpensesByMonth } from '@/utils/calculations';
+import Dashboard from '@/components/Dashboard';
+import ExpenseForm from '@/components/ExpenseForm';
+import ExpenseList from '@/components/ExpenseList';
+import CategoryManager from '@/components/CategoryManager';
+import LoginForm from '@/components/LoginForm';
+import MonthlyStats from '@/components/MonthlyStats';
 
 export default function Home() {
-  return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
+  const { user, signOut, loading: authLoading, isConfigured } = useAuth();
+  const { theme, toggleTheme } = useTheme();
+  const { storageMode, setStorageMode, isSupabaseAvailable } = useStorageMode();
+  const {
+    expenses,
+    isLoading,
+    addExpense,
+    updateExpense,
+    deleteExpense,
+    clearAllExpenses,
+    exportExpenses,
+    importExpenses,
+    syncLocalToCloud,
+    syncCloudToLocal,
+  } = useExpenses();
+
+  const {
+    categories,
+    isLoading: categoriesLoading,
+    addCategory,
+    deleteCategory,
+    resetToDefaults,
+  } = useCategories();
+
+  const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
+  const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Filter expenses by selected month
+  const filteredExpenses = filterExpensesByMonth(expenses, selectedMonth);
+
+  const handleAddExpense = (expenseData: {
+    amount: number;
+    category: string;
+    date: string;
+    description: string;
+  }) => {
+    addExpense(expenseData);
+  };
+
+  const handleEditExpense = (expense: Expense) => {
+    setEditingExpense(expense);
+    // Scroll to form
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleUpdateExpense = (expenseData: {
+    amount: number;
+    category: string;
+    date: string;
+    description: string;
+  }) => {
+    if (editingExpense) {
+      updateExpense(editingExpense.id, expenseData);
+      setEditingExpense(null);
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditingExpense(null);
+  };
+
+  const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const success = await importExpenses(file);
+      if (success) {
+        alert('✅ Expenses imported successfully!');
+      } else {
+        alert('❌ Failed to import expenses. Please check the file format.');
+      }
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleClearAll = () => {
+    if (confirm('⚠️ Are you sure you want to delete ALL expenses? This cannot be undone.')) {
+      clearAllExpenses();
+    }
+  };
+
+  const handleSyncToCloud = async () => {
+    if (confirm('📤 Upload all local data to cloud? This will add your local expenses to Supabase.')) {
+      const result = await syncLocalToCloud();
+      alert(result.success ? `✅ ${result.message}` : `❌ ${result.message}`);
+    }
+  };
+
+  const handleSyncFromCloud = async () => {
+    if (confirm('📥 Download cloud data to local storage? This will replace your local data.')) {
+      const result = await syncCloudToLocal();
+      alert(result.success ? `✅ ${result.message}` : `❌ ${result.message}`);
+    }
+  };
+
+  if (authLoading || isLoading || categoriesLoading) {
+    return (
+      <div className="flex-center" style={{ minHeight: '100vh' }}>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ fontSize: '3rem', marginBottom: '1rem', animation: 'pulse 1.5s infinite' }}>
+            💰
+          </div>
+          <p style={{ color: 'var(--text-secondary)' }}>Loading your expenses...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show login form if Supabase is configured but user is not logged in
+  if (isConfigured && !user) {
+    return (
+      <div className="container">
+        <header className="text-center mb-xl" style={{ paddingTop: '2rem' }}>
+          <h1
+            style={{
+              fontSize: 'clamp(2rem, 5vw, 3.5rem)',
+              fontWeight: '800',
+              background: 'linear-gradient(135deg, var(--primary-light), var(--secondary))',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              backgroundClip: 'text',
+              marginBottom: '0.5rem',
+            }}
+          >
+            💰 Expense Tracker
           </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+          <p style={{ color: 'var(--text-secondary)', fontSize: '1.1rem' }}>
+            Track your daily expenses and manage your budget with ease
           </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+        </header>
+        <LoginForm />
+      </div>
+    );
+  }
+
+  return (
+    <div className="container" style={{ paddingTop: '2rem', paddingBottom: '3rem' }}>
+      {/* Header */}
+      <header className="text-center mb-xl">
+        <h1
+          style={{
+            fontSize: 'clamp(2rem, 5vw, 3.5rem)',
+            fontWeight: '800',
+            background: 'linear-gradient(135deg, var(--primary-light), var(--secondary))',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            backgroundClip: 'text',
+            marginBottom: '0.5rem',
+          }}
+        >
+          💰 Expense Tracker
+        </h1>
+        <p style={{ color: 'var(--text-secondary)', fontSize: '1.1rem' }}>
+          Track your daily expenses and manage your budget with ease
+        </p>
+
+        {/* Theme Toggle Button */}
+        <button
+          onClick={toggleTheme}
+          className="btn btn-secondary btn-sm"
+          style={{
+            position: 'fixed',
+            top: '1rem',
+            right: '1rem',
+            zIndex: 1000,
+            padding: '0.75rem',
+            borderRadius: '50%',
+            width: '48px',
+            height: '48px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+          title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+        >
+          {theme === 'dark' ? '☀️' : '🌙'}
+        </button>
+
+        {/* Storage Mode Toggle */}
+        {isSupabaseAvailable && (
+          <div
+            style={{
+              position: 'fixed',
+              top: '1rem',
+              right: '5rem',
+              zIndex: 1000,
+              display: 'flex',
+              gap: '0.5rem',
+              background: 'var(--bg-tertiary)',
+              padding: '0.5rem',
+              borderRadius: 'var(--radius-lg)',
+              border: '1px solid var(--border)',
+            }}
           >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+            <button
+              onClick={() => setStorageMode('local')}
+              className="btn btn-sm"
+              style={{
+                padding: '0.5rem 1rem',
+                background: storageMode === 'local' ? 'var(--primary)' : 'transparent',
+                color: storageMode === 'local' ? 'white' : 'var(--text-secondary)',
+                border: 'none',
+              }}
+              title="Use Local Storage (Device Only)"
+            >
+              💾 Local
+            </button>
+            <button
+              onClick={() => setStorageMode('supabase')}
+              className="btn btn-sm"
+              style={{
+                padding: '0.5rem 1rem',
+                background: storageMode === 'supabase' ? 'var(--primary)' : 'transparent',
+                color: storageMode === 'supabase' ? 'white' : 'var(--text-secondary)',
+                border: 'none',
+              }}
+              title="Use Cloud Storage (Supabase)"
+            >
+              ☁️ Cloud
+            </button>
+          </div>
+        )}
+
+        {/* Action Buttons */}
+        <div className="flex gap-md" style={{ justifyContent: 'center', marginTop: '1.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
+          {isConfigured && user && (
+            <div style={{
+              padding: '0.5rem 1rem',
+              background: 'var(--bg-tertiary)',
+              borderRadius: 'var(--radius-md)',
+              fontSize: '0.875rem',
+              color: 'var(--text-secondary)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem'
+            }}>
+              👤 {user.email}
+            </div>
+          )}
+          <button onClick={exportExpenses} className="btn btn-secondary btn-sm" disabled={expenses.length === 0}>
+            📥 Export Data
+          </button>
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="btn btn-secondary btn-sm"
           >
-            Documentation
-          </a>
+            📤 Import Data
+          </button>
+          <button
+            onClick={handleClearAll}
+            className="btn btn-danger btn-sm"
+            disabled={expenses.length === 0}
+          >
+            🗑️ Clear All
+          </button>
+          {isSupabaseAvailable && (
+            <>
+              <button
+                onClick={handleSyncToCloud}
+                className="btn btn-secondary btn-sm"
+                disabled={storageMode !== 'supabase' || !user}
+                title="Upload local data to cloud"
+              >
+                📤 Sync to Cloud
+              </button>
+              <button
+                onClick={handleSyncFromCloud}
+                className="btn btn-secondary btn-sm"
+                disabled={storageMode !== 'local' || !user}
+                title="Download cloud data to local"
+              >
+                📥 Sync from Cloud
+              </button>
+            </>
+          )}
+          {isConfigured && user && (
+            <button onClick={signOut} className="btn btn-secondary btn-sm">
+              🚪 Logout
+            </button>
+          )}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".json"
+            onChange={handleImport}
+            style={{ display: 'none' }}
+          />
         </div>
-      </main>
+      </header>
+
+      {/* Expense Form - Moved to top for easy access */}
+      <div className="mb-xl">
+        {editingExpense ? (
+          <ExpenseForm
+            categories={categories}
+            onSubmit={handleUpdateExpense}
+            initialData={editingExpense}
+            onCancel={handleCancelEdit}
+          />
+        ) : (
+          <ExpenseForm categories={categories} onSubmit={handleAddExpense} />
+        )}
+      </div>
+
+      {/* Dashboard */}
+      <div className="mb-xl">
+        <Dashboard categories={categories} expenses={selectedMonth ? filteredExpenses : expenses} />
+      </div>
+
+      {/* Monthly Stats */}
+      <div className="mb-xl">
+        <MonthlyStats
+          expenses={expenses}
+          selectedMonth={selectedMonth}
+          onMonthChange={setSelectedMonth}
+        />
+      </div>
+
+      {/* Category Manager */}
+      <div className="mb-xl">
+        <CategoryManager
+          categories={categories}
+          onAddCategory={addCategory}
+          onDeleteCategory={deleteCategory}
+          onResetCategories={resetToDefaults}
+        />
+      </div>
+
+      {/* Expense List */}
+      <ExpenseList
+        categories={categories}
+        expenses={filteredExpenses}
+        onEdit={handleEditExpense}
+        onDelete={deleteExpense}
+      />
+
+      {/* Footer */}
+      <footer className="text-center" style={{ marginTop: '3rem', color: 'var(--text-tertiary)', fontSize: '0.875rem' }}>
+        <p>Built by Shaz • <a href="mailto:shazahmed290@gmail.com" style={{ color: 'var(--primary)', textDecoration: 'none' }}>shazahmed290@gmail.com</a></p>
+      </footer>
     </div>
   );
 }
